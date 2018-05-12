@@ -164,6 +164,36 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+bool CheckIfCarIsTooClose(json sensor_fusion, int lane, double car_s, int prev_size, bool look_behind)
+{
+	for(int i=0;i<sensor_fusion.size();i++)
+{
+	//cout<<"Inside Sesnor Fusion"<<endl;
+	float d= sensor_fusion[i][6];
+	if(d<(2+ 4*lane + 2) && d > (2+lane*4 -2))
+	{
+		//cout<<"Inside 1"<<endl;
+		double vx= sensor_fusion[i][3];
+		double vy= sensor_fusion[i][4];
+		double check_speed = sqrt(vx*vx +vy*vy);
+		double check_car_s = sensor_fusion[i][5];
+
+		check_car_s += ((double)prev_size*0.02*check_speed);
+		//cout<<"check car s is"<<check_car_s<<"car s is "<<car_s;
+		
+		if(((check_car_s > car_s) && ((check_car_s - car_s) < 30)) || 
+		(look_behind && (check_car_s < car_s) && ((car_s - check_car_s <10))))
+		{
+			return true;
+			
+		}
+		
+			
+	}
+}
+return false;
+}
+
 int main() {
   uWS::Hub h;
 
@@ -201,7 +231,7 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 int lane = 1;
-double ref_vel = 49.5;
+double ref_vel = 0;
 
   h.onMessage([&ref_vel,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -241,12 +271,152 @@ double ref_vel = 49.5;
           	auto sensor_fusion = j[1]["sensor_fusion"];
 						vector<double> next_x_vals;
           	vector<double> next_y_vals;
-						int prev_size = previous_path_x.size();
-						vector<double> ptsx;
-						vector<double> ptsy;
-						double ref_x = car_x;
-						double ref_y = car_y;
-						double ref_yaw = deg2rad(car_yaw);
+			int prev_size = previous_path_x.size();
+
+if(prev_size >2){
+	car_s = end_path_s;
+}
+bool too_close = false;
+
+too_close = CheckIfCarIsTooClose(sensor_fusion, lane, car_s, prev_size, false);
+
+if(too_close)
+{
+	cout<<"Car is too close"<<endl;
+	int left_lane = lane - 1;
+	int right_lane = lane + 1;
+	if(left_lane >=0)
+	{
+		cout<<"left lane is"<<left_lane<<endl;
+		bool too_close_left = CheckIfCarIsTooClose(sensor_fusion, left_lane, car_s, prev_size,true);
+		if(too_close_left)
+		{
+			cout<<"Left Car is too close"<<left_lane<<endl;
+			if(right_lane <= 2)
+			{
+				bool too_close_right = CheckIfCarIsTooClose(sensor_fusion, right_lane, car_s, prev_size, true);
+				if(too_close_right)
+				{
+					// keep lane
+				}
+				else
+				{
+					lane = right_lane;
+				}
+			}
+			else
+			{
+				bool too_close_left1 = CheckIfCarIsTooClose(sensor_fusion, left_lane, car_s, prev_size,true);
+				if(too_close_left1)
+				{
+					//keep lane
+				}
+				else
+				{
+					lane= left_lane;
+				}
+			}
+		}
+		else
+		{
+			lane= left_lane;
+		}
+	}
+	else
+	{
+		cout<<"Trying Right lane as left lane is not possible"<<endl;
+				bool too_close_right = CheckIfCarIsTooClose(sensor_fusion, right_lane, car_s, prev_size, true);
+				if(too_close_right)
+				{
+					// keep lane
+				}
+				else
+				{
+					lane = right_lane;
+				}
+		
+	}
+
+	ref_vel -= .224;
+}/*
+if(too_close)
+{
+	if(lane == 1)
+	{
+		bool too_close_left = CheckIfCarIsTooClose(sensor_fusion, lane-1, car_s, prev_size);
+		if(too_close_left)
+		{
+			bool too_close_right = CheckIfCarIsTooClose(sensor_fusion, lane+1, car_s, prev_size);
+			if(too_close_right)
+			{
+
+			}
+			else
+			{
+				lane = lane + 1;
+			}
+		}
+		else
+		{
+			lane = lane -1;
+		}
+
+	}
+	else if(lane == 0)
+	{
+		bool too_close_left = CheckIfCarIsTooClose(sensor_fusion, lane+1, car_s, prev_size);
+		if(too_close_left)
+		{
+			bool too_close_right = CheckIfCarIsTooClose(sensor_fusion, lane+2, car_s, prev_size);
+			if(too_close_right)
+			{
+
+			}
+			else
+			{
+				lane = lane + 2;
+			}
+		}
+		else
+		{
+			lane = lane + 1;
+		}
+	}
+
+	else if(lane == 2)
+	{
+		bool too_close_left = CheckIfCarIsTooClose(sensor_fusion, lane - 1, car_s, prev_size);
+		if(too_close_left)
+		{
+			bool too_close_right = CheckIfCarIsTooClose(sensor_fusion, lane - 2, car_s, prev_size);
+			if(too_close_right)
+			{
+
+			}
+			else
+			{
+				lane = lane - 2;
+			}
+		}
+		else
+		{
+			lane = lane - 1;
+		}
+	}
+		ref_vel -= .224;
+
+}*/
+else if(ref_vel <49.5)
+{
+	ref_vel += .224;
+}
+
+
+			vector<double> ptsx;
+			vector<double> ptsy;
+			double ref_x = car_x;
+			double ref_y = car_y;
+			double ref_yaw = deg2rad(car_yaw);
 
 
 					// for spline 5 points are required
@@ -267,6 +437,8 @@ double ref_vel = 49.5;
 						}
 						else
 						{
+							// take points from previous points 
+
 							double ref_x_prev = previous_path_x[prev_size-2];
 							double ref_y_prev = previous_path_y[prev_size-2];
 							
@@ -283,6 +455,7 @@ double ref_vel = 49.5;
 
 						}
 
+						//calculate the rest of 3 points
 						vector<double> XY3= getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 						vector<double> XY4= getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 						vector<double> XY5= getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -309,10 +482,10 @@ double ref_vel = 49.5;
 						//create a spline
 						tk:: spline s;
 
-						//pass all the points through spline
+						//pass all the 5 points through spline
 						s.set_points(ptsx,ptsy);
 
-						//add all the previous points
+						//add all the previous points, this is a second set of points containing the path waypoints
 						for(int i=0;i<previous_path_x.size();i++)
 						{
 							next_x_vals.push_back(previous_path_x[i]);
