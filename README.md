@@ -39,9 +39,8 @@ The simulator sends a number of things like Car's location, velocity, yaw rate, 
 
 The data from the sensor fusion and simulator is used to generate the prediction of what the other vehicles are likely to do. The sensor fusion data gives us data about the other cars nearby and we predict what they are likely to do. We change our behaviour on the basis of the Prediction of other cars behaviour
 
-### Behaviour Planning (Lines 286  - 340)
+### Behaviour Planning 
 
-The behaviour is defined from lines 286 to 340 in main.cpp.
 
 My algo for behaviour planning is as follows-:
 
