@@ -11,7 +11,7 @@ The goal of this project is to drive a car around a simulated highway including 
 * If the car ahead is moving slow, then we should be able to change lanes.
 
 ## Output
-The final output video can be observed here.
+The final output video can be observed [here](https://youtu.be/Uv2Z6rKvxaA).
 
 ## Rubric Points
 
